@@ -10,6 +10,7 @@ import numpy as np
 import tensorflow_datasets as tfds # for testing with Stanford Dog dataset
 import tensorflow as tf  # For tf.data
 import tensorflow.keras.optimizers as optimizers
+import tensorflow.keras.callbacks as callbacks
 import tensorflow.keras.losses as losses
 import matplotlib.pyplot as plt
 import keras
@@ -44,6 +45,7 @@ def display_data_sample(ds_train, label_info):
     plt.show()
 
 def img_augmentation(images):
+    print("This is an image?:", images)
     for layer in IMG_AUGMENTATION_LAYERS:
         images = layer(images)
 
