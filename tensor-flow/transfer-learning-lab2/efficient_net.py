@@ -21,7 +21,7 @@ import os
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
 BATCH_SIZE = 64 # arbitrarily chosen; also power of 2?
-EPOCHS = 5  # @param {type: "slider", min:10, max:100}
+EPOCHS = 100  # @param {type: "slider", min:10, max:100}
 
 # applying certain transformations to my images to augment them and increase ds size
 IMG_AUGMENTATION_LAYERS = [
