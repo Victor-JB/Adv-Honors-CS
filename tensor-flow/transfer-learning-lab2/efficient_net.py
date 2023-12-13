@@ -20,7 +20,7 @@ import os
 
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
-BATCH_SIZE = 64 # arbitrarily chosen; also power of 2?
+BATCH_SIZE = 128 # arbitrarily chosen; also power of 2?
 EPOCHS = 100  # @param {type: "slider", min:10, max:100}
 
 # applying certain transformations to my images to augment them and increase ds size
@@ -138,7 +138,7 @@ inputs = keras.Input(shape = (IMG_SIZE, IMG_SIZE, 3))
 outputs = eff_net(inputs)
 outputs = layers.Dense(NUM_CLASSES, activation = 'softmax')(outputs)
 
-optimizer = optimizers.legacy.Adam(learning_rate = 0.00001)
+optimizer = optimizers.legacy.Adam(learning_rate = 0.0001)
 loss = losses.CategoricalCrossentropy()
 
 model = keras.Model(inputs, outputs)
@@ -147,7 +147,7 @@ callbacks = [
     callbacks.ModelCheckpoint(
         'checkpoints/checkpoints_{epoch:02d}',
         verbose = 2,
-        save_freq = 76,
+        save_freq = 1280,
     )
 ]
 
