@@ -17,14 +17,9 @@ try:
 except AttributeError:
     import pyautogui as pymouseutil     # For Mac
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-c", "--create_ds", required = False,
-               help = "Toggle whether dataset creation is on or off",
-               action="store_true") # no input is required for argument; just the flag
-args = vars(ap.parse_args())
-
 SCRNSHOT_PLAYER = False
 SCRNSHOT_NOT_PLAYER = False
+ON = True
 
 screenshotter = mss.mss()
 
@@ -32,14 +27,24 @@ screenshotter = mss.mss()
 def on_release(key):
     key = str(key).strip("'")
 
+    global SCRNSHOT_PLAYER
+    global SCRNSHOT_NOT_PLAYER
+
     if key == 'p':
-        global SCRNSHOT_PLAYER
         SCRNSHOT_PLAYER = not SCRNSHOT_PLAYER
         SCRNSHOT_NOT_PLAYER = False
+        print("\n\nSCRNSHOT_PLAYER is", SCRNSHOT_PLAYER)
+        print("SCRNSHOT_NOT_PLAYER is", SCRNSHOT_NOT_PLAYER)
 
     if key == 'n':
         SCRNSHOT_NOT_PLAYER = not SCRNSHOT_NOT_PLAYER
         SCRNSHOT_PLAYER = False
+        print("\n\nSCRNSHOT_NOT_PLAYER is", SCRNSHOT_NOT_PLAYER)
+        print("SCRNSHOT_PLAYER is", SCRNSHOT_PLAYER)
+
+    if key == 'q':
+        global ON
+        ON = False
 
     return
 
@@ -57,7 +62,11 @@ def main():
                                   'width': screen_width,
                                   'height': screen_height}
 
-    while True:
+    print("Keyboard being input read... ready to take screenshots\n1. 'p' key \
+to toggle screenshotting when player is IN the frame\n2. 'n' key to toggle when \
+player is NOT in view")
+
+    while ON:
         if SCRNSHOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
@@ -68,7 +77,6 @@ def main():
         elif SCRNSHOT_NOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            now = datetime.datetime.now().strftime("%H%M%S")
             output = f"krunker_img/NO_PLAYER/NO_PLAYER_{current_milli_time()}.jpeg"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
