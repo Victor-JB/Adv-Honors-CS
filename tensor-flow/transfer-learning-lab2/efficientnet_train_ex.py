@@ -92,6 +92,8 @@ def load_dataset():
 
     NUM_CLASSES = ds_info.features["label"].num_classes
 
+    print(ds_info)
+
     print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes\nThe dataset:\n{ds_train}")
 
     size = (IMG_SIZE, IMG_SIZE)
@@ -116,7 +118,7 @@ def load_dataset():
 
     return ds_train, ds_test, NUM_CLASSES, label_info
 
-def create_model():
+def create_model(num_classes):
     eff_net = EfficientNetB3(
         include_top = True,
         # weights = None,
@@ -136,7 +138,7 @@ def create_model():
     inputs = keras.Input(shape = (IMG_SIZE, IMG_SIZE, 3))
 
     outputs = eff_net(inputs)
-    outputs = layers.Dense(NUM_CLASSES, activation = 'softmax')(outputs)
+    outputs = layers.Dense(num_classes, activation = 'softmax')(outputs)
 
     optimizer = optimizers.legacy.Adam(learning_rate = 0.0001)
     loss = losses.CategoricalCrossentropy()
@@ -151,39 +153,41 @@ def create_model():
 
     return model
 
-# dataset has been gitignored for the sake of internet connection
-# MINE HERE
+def main():
 
-ds_train, ds_test, NUM_CLASSES, label_info = load_dataset()
+    ds_train, ds_test, NUM_CLASSES, label_info = load_dataset()
 
-if os.path.isdir('checkpoints'):
+    if os.path.isdir('checkpoints'):
 
-    most_recent = max([int(dir.split('_')[1]) for dir in os.listdir(CHECKPOINT_PATH)])
-    model = tf.keras.models.load_model(f'{CHECKPOINT_PATH}/checkpoints_{most_recent}')
+        most_recent = max([int(dir.split('_')[1]) for dir in os.listdir(CHECKPOINT_PATH)])
+        model = tf.keras.models.load_model(f'{CHECKPOINT_PATH}/checkpoints_{most_recent}')
 
-    loss, acc = model.evaluate(ds_test, verbose=2)
-    print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
+        loss, acc = model.evaluate(ds_test, verbose=2)
+        print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
 
-else:
+    else:
 
-    model = create_model()
+        model = create_model(NUM_CLASSES)
 
-    callbacks = [
-        callbacks.ModelCheckpoint(
-            CHECKPOINT_PATH + '/checkpoints_{epoch:02d}',
-            verbose = 2,
-            save_freq = 4 * len(ds_train),
+        callbacks = [
+            callbacks.ModelCheckpoint(
+                CHECKPOINT_PATH + '/checkpoints_{epoch:02d}',
+                verbose = 2,
+                save_freq = 4 * len(ds_train),
+            )
+        ]
+
+        # model.summary()
+
+        hist = model.fit(
+            ds_train,
+            epochs = EPOCHS,
+            verbose = 1,
+            validation_data = ds_test,
+            callbacks = callbacks,
         )
-    ]
 
-    # model.summary()
+        plot_hist(hist)
 
-    hist = model.fit(
-        ds_train,
-        epochs = EPOCHS,
-        verbose = 1,
-        validation_data = ds_test,
-        callbacks = callbacks,
-    )
-
-    plot_hist(hist)
+if __name__ == "__main__":
+    main()

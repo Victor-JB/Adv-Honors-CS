@@ -25,7 +25,6 @@ BATCH_SIZE = 32 # seems to work well, power of 2
 EPOCHS = 100
 CHECKPOINT_PATH = 'checkpoints'
 DATASET_NAME = "defungi"
-NUM_CLASSES = 2 # also find way to grab this directly from loaded in ds
 
 # applying certain transformations to my images to augment them and increase ds size
 IMG_AUGMENTATION_LAYERS = [
@@ -69,11 +68,11 @@ def display_aug_data_sample(ds_train, label_info=None):
 # One-hot / categorical encoding
 def input_preprocess_train(image, label):
     image = img_augmentation(image)
-    label = tf.one_hot(label, NUM_CLASSES)
+    label = tf.one_hot(label, num_classes)
     return image, label
 
 def input_preprocess_test(image, label):
-    label = tf.one_hot(label, NUM_CLASSES)
+    label = tf.one_hot(label, num_classes)
     return image, label
 
 def plot_hist(hist):
@@ -94,9 +93,9 @@ def load_dataset():
         subset = 'both',
     )
 
-    NUM_CLASSES = ds_train.features["label"].num_classes
+    num_classes = len(ds_train.class_names)
 
-    print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes\nThe dataset:\n{ds_train}")
+    print(f"\nDataset has been loaded; contains {num_classes} classes\nThe dataset:\n{ds_train}")
 
     size = (IMG_SIZE, IMG_SIZE)
     ds_train = ds_train.map(lambda image, label: (tf.image.resize(image, size), label))
@@ -118,7 +117,7 @@ def load_dataset():
     print("\nDataset has been resized to uniform IMG_SIZE, labels have been put into \
     one-hot (a.k.a. categorical) encoding, the dataset has been batched.")
 
-    return ds_train, ds_test
+    return ds_train, ds_test, num_classes
 
 def create_model():
     eff_net = EfficientNetB3(
@@ -127,7 +126,7 @@ def create_model():
         weights = 'imagenet',
 
         # below only applicable if 'weights = None'
-        # classes = NUM_CLASSES,
+        # classes = num_classes,
         # input_shape = (IMG_SIZE, IMG_SIZE, 3),
         # pooling=None,
         # classifier_activation='softmax',
@@ -140,7 +139,7 @@ def create_model():
     inputs = keras.Input(shape = (IMG_SIZE, IMG_SIZE, 3))
 
     outputs = eff_net(inputs)
-    outputs = layers.Dense(NUM_CLASSES, activation = 'softmax')(outputs)
+    outputs = layers.Dense(num_classes, activation = 'softmax')(outputs)
 
     optimizer = optimizers.legacy.Adam(learning_rate = 0.0001)
     loss = losses.CategoricalCrossentropy()
@@ -155,36 +154,40 @@ def create_model():
 
     return model
 
-ds_train, ds_test = load_dataset()
+def main():
+    ds_train, ds_test, num_classes = load_dataset()
 
-if os.path.isdir('checkpoints'):
+    if os.path.isdir('checkpoints'):
 
-    most_recent = max([int(dir.split('_')[1]) for dir in os.listdir(CHECKPOINT_PATH)])
-    model = tf.keras.models.load_model(f'{CHECKPOINT_PATH}/checkpoints_{most_recent}')
+        most_recent = max([int(dir.split('_')[1]) for dir in os.listdir(CHECKPOINT_PATH)])
+        model = tf.keras.models.load_model(f'{CHECKPOINT_PATH}/checkpoints_{most_recent}')
 
-    loss, acc = model.evaluate(ds_test, verbose=2)
-    print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
+        loss, acc = model.evaluate(ds_test, verbose=2)
+        print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
 
-else:
+    else:
 
-    model = create_model()
+        model = create_model(num_classes)
 
-    callbacks = [
-        callbacks.ModelCheckpoint(
-            CHECKPOINT_PATH + '/checkpoints_{epoch:02d}',
-            verbose = 2,
-            save_freq = 4 * len(ds_train),
+        callbacks = [
+            callbacks.ModelCheckpoint(
+                CHECKPOINT_PATH + '/checkpoints_{epoch:02d}',
+                verbose = 2,
+                save_freq = 4 * len(ds_train),
+            )
+        ]
+
+        # model.summary()
+
+        hist = model.fit(
+            ds_train,
+            epochs = EPOCHS,
+            verbose = 1,
+            validation_data = ds_test,
+            callbacks = callbacks,
         )
-    ]
 
-    # model.summary()
+        plot_hist(hist)
 
-    hist = model.fit(
-        ds_train,
-        epochs = EPOCHS,
-        verbose = 1,
-        validation_data = ds_test,
-        callbacks = callbacks,
-    )
-
-    plot_hist(hist)
+if __name__ == "__main__":
+    main()
