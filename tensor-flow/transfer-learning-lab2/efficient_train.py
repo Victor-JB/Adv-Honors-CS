@@ -6,9 +6,10 @@ first go :)
 Date: Winter 2023
 """
 
+import os
 import numpy as np
 import tensorflow_datasets as tfds # for testing with Stanford Dog dataset
-import tensorflow as tf  # For tf.data
+import tensorflow as tf
 import tensorflow.keras.optimizers as optimizers
 import tensorflow.keras.callbacks as callbacks
 import tensorflow.keras.losses as losses
@@ -16,17 +17,17 @@ import matplotlib.pyplot as plt
 import keras
 from keras import layers
 from keras.applications import EfficientNetB3
-import os
 import math
 from utils import current_milli_time
+import argparse
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # disable those pesky tf warnings
+# doesn't seem to be working...
+tf.get_logger().setLevel('ERROR') # disable those pesky tf warnings
 
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
-BATCH_SIZE = 128 # arbitrarily chosen; also power of 2?
-EPOCHS = 100  # @param {type: "slider", min:10, max:100}
-CHECKPOINT_PATH = 'checkpoint'
+BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
+EPOCHS = 50
 DEFAULT_DATASET_NAME = "stanford_dogs"
 CHKPT_EPOCH_SAVE_FREQ = 1
 
@@ -64,7 +65,7 @@ def img_augmentation(images):
 
     return images
 
-def display_aug_data_sample(ds_train, label_info=None):
+def display_aug_data_sample(ds_train, label_info):
     for image, label in ds_train.take(1):
         for i in range(9):
             ax = plt.subplot(3, 3, i + 1)
@@ -76,12 +77,16 @@ def display_aug_data_sample(ds_train, label_info=None):
 
     plt.show()
 
-# One-hot / categorical encoding
-def input_preprocess_train(image, label):
+# One-hot / categorical encoding only for tfds data
+def input_preprocess_tfds_train(image, label):
     image = img_augmentation(image)
     label = tf.one_hot(label, NUM_CLASSES)
     return image, label
 
+# only augmenting since image_ds_from_dir already does one-hot encoding
+def input_preprocess_custom_train(image, label):
+    image = img_augmentation(image)
+    return image, label
 
 def input_preprocess_test(image, label):
     label = tf.one_hot(label, NUM_CLASSES)
@@ -101,18 +106,27 @@ def load_dataset(DS_PATH=None):
     global NUM_CLASSES # need to do this for input_preprocess functions--not sure of better way
     if DS_PATH:
         # will handle ds path validation for me
-        ds_train, ds_test = utils.image_dataset_from_directory(
+        ds_train, ds_test = tf.keras.utils.image_dataset_from_directory(
             DS_PATH,
             label_mode = 'categorical',
+            image_size = (IMG_SIZE, IMG_SIZE),
             seed = 69420,
             validation_split = 0.30,
+            batch_size = BATCH_SIZE,
             subset = 'both',
         )
 
+        print(f"\nCustom dataset {DS_PATH} provided, loaded successfully")
+        print(f"\nDataset images have been resized to ({IMG_SIZE}, {IMG_SIZE})")
+
         NUM_CLASSES = len(ds_train.class_names)
-        label_info = ds_info.features["label"]
+        label_info = tfds.features.ClassLabel(num_classes=int(NUM_CLASSES))
+
+        # augmentation--err, supposed to be augmentation
+        ds_train = ds_train.map(input_preprocess_custom_train, num_parallel_calls=tf.data.AUTOTUNE)
 
     else:
+        print(f"\nNo dataset provided; using standard dataset '{DEFAULT_DATASET_NAME}'")
         (ds_train, ds_test), ds_info = tfds.load(
                 DEFAULT_DATASET_NAME, split=["train", "test"], with_info=True, as_supervised=True
         )
@@ -120,23 +134,25 @@ def load_dataset(DS_PATH=None):
         NUM_CLASSES = ds_info.features["label"].num_classes
         label_info = ds_info.features["label"]
 
-    print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes\nDataset type: {ds_train}")
+        size = (IMG_SIZE, IMG_SIZE)
+        ds_train = ds_train.map(lambda image, label: (tf.image.resize(image, size), label))
+        ds_test = ds_test.map(lambda image, label: (tf.image.resize(image, size), label))
+        print("\nDataset images have been resized")
 
-    size = (IMG_SIZE, IMG_SIZE)
-    ds_train = ds_train.map(lambda image, label: (tf.image.resize(image, size), label))
-    ds_test = ds_test.map(lambda image, label: (tf.image.resize(image, size), label))
+        # one-hot encoding + augmentation of train data
+        ds_train = ds_train.map(input_preprocess_tfds_train, num_parallel_calls=tf.data.AUTOTUNE)
+        ds_test = ds_test.map(input_preprocess_test, num_parallel_calls=tf.data.AUTOTUNE)
 
-    print("\nDataset images have been resized")
+        # needs to be batched here... batching in .fit doesn't work
+        ds_train = ds_train.batch(batch_size=BATCH_SIZE, drop_remainder=True)
+        ds_test = ds_test.batch(batch_size=BATCH_SIZE, drop_remainder=True)
+
+    print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes")
 
     # display_data_sample(ds_train, label_info)
-    # display_aug_data_sample(ds_train, label_info=label_info)
+    # display_aug_data_sample(ds_train, label_info)
 
-    ds_train = ds_train.map(input_preprocess_train, num_parallel_calls=tf.data.AUTOTUNE)
-    ds_train = ds_train.batch(batch_size=BATCH_SIZE, drop_remainder=True)
     ds_train = ds_train.prefetch(tf.data.AUTOTUNE)
-
-    ds_test = ds_test.map(input_preprocess_test, num_parallel_calls=tf.data.AUTOTUNE)
-    ds_test = ds_test.batch(batch_size=BATCH_SIZE, drop_remainder=True)
 
     print("\nDataset has been resized to uniform IMG_SIZE, labels have been put \
 into one-hot (categorical) encoding, the dataset has been batched.")
@@ -156,7 +172,7 @@ def create_model(NUM_CLASSES):
         # classifier_activation='softmax',
     )
 
-    print(f"\n{eff_net=}")
+    print(f"\nCreated model: {eff_net}\n")
 
     eff_net.trainable = False
 
@@ -187,14 +203,14 @@ def main():
 
     model = create_model(NUM_CLASSES) # passing in n_classes for sake of readability & reusability
 
+    CHECKPOINT_PATH = 'checkpoints' # was getting UnboundLocalVar error when defining globally
     if args['checkpoint_path']:
         CHECKPOINT_PATH = args['checkpoint_path']
 
     elif os.path.isdir('checkpoint'): # to avoid writing over checkpoints that already exist
-        CHECKPOINT_PATH = 'checkpoint_' + str(current_milli_time())[:2]
+        CHECKPOINT_PATH = 'checkpoints_' + str(current_milli_time())[:2]
         
-    print("lenght of ds train:", len(ds_train))
-    callbacks = [
+    callback = [
         callbacks.ModelCheckpoint(
             filepath = CHECKPOINT_PATH,
             save_best_only = True,
@@ -205,12 +221,14 @@ def main():
 
     model.summary()
 
+    print() # console formatting ;)
     model = model.fit(
         ds_train,
         epochs = EPOCHS,
+        # batch_size = BATCH_SIZE, <-- batching done in preprocessing
         verbose = 1,
         validation_data = ds_test,
-        callbacks = callbacks,
+        callbacks = callback,
     )
 
     plot_hist(model)

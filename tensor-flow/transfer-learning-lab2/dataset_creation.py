@@ -1,7 +1,8 @@
 
 """
 Author: Victor J.
-Description: Creating the krunker player dataset for my model
+Description: Creating the krunker player dataset for my model; this script lets
+me take screenshots of my screen while playing to create the ds
 Date: Winter 2023
 """
 
