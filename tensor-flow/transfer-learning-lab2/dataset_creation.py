@@ -8,10 +8,7 @@ Date: Winter 2023
 
 import mss.tools
 from pynput import keyboard
-import argparse
-import numpy as np
 from PIL import Image
-import time
 from utils import current_milli_time
 
 try:

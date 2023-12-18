@@ -195,7 +195,7 @@ def create_model(NUM_CLASSES):
     return model
 
 def main():
-    
+
     if args['dataset_path']:
         ds_train, ds_test, NUM_CLASSES = load_dataset(args['dataset_path'])
     else:
@@ -207,9 +207,9 @@ def main():
     if args['checkpoint_path']:
         CHECKPOINT_PATH = args['checkpoint_path']
 
-    elif os.path.isdir('checkpoint'): # to avoid writing over checkpoints that already exist
-        CHECKPOINT_PATH = 'checkpoints_' + str(current_milli_time())[:2]
-        
+    elif os.path.isdir(CHECKPOINT_PATH): # to avoid writing over checkpoints that already exist
+        CHECKPOINT_PATH = 'checkpoints_' + str(current_milli_time())[10:]
+
     callback = [
         callbacks.ModelCheckpoint(
             filepath = CHECKPOINT_PATH,
