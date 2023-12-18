@@ -27,15 +27,17 @@ tf.get_logger().setLevel('ERROR') # disable those pesky tf warnings
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
-EPOCHS = 50
+EPOCHS = 100
 DEFAULT_DATASET_NAME = "stanford_dogs"
-CHKPT_EPOCH_SAVE_FREQ = 1
+CHKPT_EPOCH_SAVE_FREQ = 3
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-d", "--dataset_path", required = False,
                help = "Enter custom dataset path to train classifier from")
 ap.add_argument("-c", "--checkpoint_path", required = False,
                help = "Enter custom model checkpoint path")
+ap.add_argument("-r", "--resume_checkpoint", required = False,
+               help = "Enter checkpoint path fron which to resume training")
 args = vars(ap.parse_args())
 
 # applying certain transformations to my images to augment them and increase ds size
@@ -179,9 +181,14 @@ def create_model(NUM_CLASSES):
     inputs = keras.Input(shape = (IMG_SIZE, IMG_SIZE, 3))
 
     outputs = eff_net(inputs)
+
+    outputs = layers.Dense(256, activation = 'relu')(outputs)
+    outputs = layers.Dense(64, activation = 'relu')(outputs)
+    outputs = layers.Dense(16, activation = 'relu')(outputs)
+
     outputs = layers.Dense(NUM_CLASSES, activation = 'softmax')(outputs)
 
-    optimizer = optimizers.legacy.Adam(learning_rate = 0.0001)
+    optimizer = optimizers.legacy.Adam(learning_rate = 0.001)
     loss = losses.CategoricalCrossentropy()
 
     model = keras.Model(inputs, outputs)
@@ -201,7 +208,12 @@ def main():
     else:
         ds_train, ds_test, NUM_CLASSES = load_dataset()
 
-    model = create_model(NUM_CLASSES) # passing in n_classes for sake of readability & reusability
+    if args['resume_checkpoint']:
+        model = tf.keras.models.load_model(args['resume_checkpoint'])
+        print(f"\nModel at '{args['resume_checkpoint']}' loaded successfully")
+
+    else:
+        model = create_model(NUM_CLASSES) # passing in n_classes for sake of readability & reusability
 
     CHECKPOINT_PATH = 'checkpoints' # was getting UnboundLocalVar error when defining globally
     if args['checkpoint_path']:
@@ -210,10 +222,11 @@ def main():
     elif os.path.isdir(CHECKPOINT_PATH): # to avoid writing over checkpoints that already exist
         CHECKPOINT_PATH = 'checkpoints_' + str(current_milli_time())[10:]
 
+    print(f"\nSaving checkpoints at {CHECKPOINT_PATH}")
     callback = [
         callbacks.ModelCheckpoint(
             filepath = CHECKPOINT_PATH,
-            save_best_only = True,
+            # save_best_only = True,
             verbose = 1,
             save_freq = CHKPT_EPOCH_SAVE_FREQ * len(ds_train),
         )

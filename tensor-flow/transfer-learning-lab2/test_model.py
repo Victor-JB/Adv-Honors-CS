@@ -3,7 +3,7 @@ def main():
     if CHECKPOINT_EVAL_PATH:
 
         try:
-                os.path.isdir(CHECKPOINT_EVAL_PATH)
+            os.path.isdir(CHECKPOINT_EVAL_PATH)
         except:
             print(f"\nPath {CHECKPOINT_EVAL_PATH} is not a valid checkpoint path.")
 
