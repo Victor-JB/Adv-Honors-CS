@@ -11,6 +11,7 @@ import argparse
 import numpy as np
 from PIL import Image
 import time
+from utils import current_milli_time
 
 try:
     import pydirectinput as pymouseutil # For Windows
@@ -20,6 +21,7 @@ except AttributeError:
 SCRNSHOT_PLAYER = False
 SCRNSHOT_NOT_PLAYER = False
 ON = True
+DS_DIR_NAME = "krunker_img_ds"
 
 screenshotter = mss.mss()
 
@@ -48,9 +50,6 @@ def on_release(key):
 
     return
 
-def current_milli_time():
-    return round(time.time() * 1000)
-
 listener = keyboard.Listener(on_release=on_release)
 listener.start()
 
@@ -70,14 +69,14 @@ player is NOT in view")
         if SCRNSHOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            output = f"krunker_img/PLAYER/PLAYER_{current_milli_time()}.jpeg"
+            output = f"{DS_DIR_NAME}/PLAYER/PLAYER_{current_milli_time()}.jpeg"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 
         elif SCRNSHOT_NOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            output = f"krunker_img/NO_PLAYER/NO_PLAYER_{current_milli_time()}.jpeg"
+            output = f"{DS_DIR_NAME}/NO_PLAYER/NO_PLAYER_{current_milli_time()}.jpeg"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 

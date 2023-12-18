@@ -18,13 +18,24 @@ from keras import layers
 from keras.applications import EfficientNetB3
 import os
 import math
+from utils import current_milli_time
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # disable those pesky tf warnings
 
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
 BATCH_SIZE = 128 # arbitrarily chosen; also power of 2?
 EPOCHS = 100  # @param {type: "slider", min:10, max:100}
-CHECKPOINT_PATH = 'checkpoints'
-DATASET_NAME = "stanford_dogs"
+CHECKPOINT_PATH = 'checkpoint'
+DEFAULT_DATASET_NAME = "stanford_dogs"
+CHKPT_EPOCH_SAVE_FREQ = 1
+
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--dataset_path", required = False,
+               help = "Enter custom dataset path to train classifier from")
+ap.add_argument("-c", "--checkpoint_path", required = False,
+               help = "Enter custom model checkpoint path")
+args = vars(ap.parse_args())
 
 # applying certain transformations to my images to augment them and increase ds size
 IMG_AUGMENTATION_LAYERS = [
@@ -76,25 +87,40 @@ def input_preprocess_test(image, label):
     label = tf.one_hot(label, NUM_CLASSES)
     return image, label
 
-def plot_hist(hist):
-    plt.plot(hist.history["accuracy"])
-    plt.plot(hist.history["val_accuracy"])
+def plot_hist(model):
+    plt.plot(model.history["accuracy"])
+    plt.plot(model.history["val_accuracy"])
     plt.title("model accuracy")
     plt.ylabel("accuracy")
     plt.xlabel("epoch")
     plt.legend(["train", "validation"], loc="upper left")
     plt.show()
 
-def load_dataset():
-    (ds_train, ds_test), ds_info = tfds.load(
-            DATASET_NAME, split=["train", "test"], with_info=True, as_supervised=True
-    )
+def load_dataset(DS_PATH=None):
 
-    NUM_CLASSES = ds_info.features["label"].num_classes
+    global NUM_CLASSES # need to do this for input_preprocess functions--not sure of better way
+    if DS_PATH:
+        # will handle ds path validation for me
+        ds_train, ds_test = utils.image_dataset_from_directory(
+            DS_PATH,
+            label_mode = 'categorical',
+            seed = 69420,
+            validation_split = 0.30,
+            subset = 'both',
+        )
 
-    print(ds_info)
+        NUM_CLASSES = len(ds_train.class_names)
+        label_info = ds_info.features["label"]
 
-    print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes\nThe dataset:\n{ds_train}")
+    else:
+        (ds_train, ds_test), ds_info = tfds.load(
+                DEFAULT_DATASET_NAME, split=["train", "test"], with_info=True, as_supervised=True
+        )
+
+        NUM_CLASSES = ds_info.features["label"].num_classes
+        label_info = ds_info.features["label"]
+
+    print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes\nDataset type: {ds_train}")
 
     size = (IMG_SIZE, IMG_SIZE)
     ds_train = ds_train.map(lambda image, label: (tf.image.resize(image, size), label))
@@ -102,7 +128,6 @@ def load_dataset():
 
     print("\nDataset images have been resized")
 
-    label_info = ds_info.features["label"]
     # display_data_sample(ds_train, label_info)
     # display_aug_data_sample(ds_train, label_info=label_info)
 
@@ -113,17 +138,17 @@ def load_dataset():
     ds_test = ds_test.map(input_preprocess_test, num_parallel_calls=tf.data.AUTOTUNE)
     ds_test = ds_test.batch(batch_size=BATCH_SIZE, drop_remainder=True)
 
-    print("\nDataset has been resized to uniform IMG_SIZE, labels have been put into \
-    one-hot (a.k.a. categorical) encoding, the dataset has been batched.")
+    print("\nDataset has been resized to uniform IMG_SIZE, labels have been put \
+into one-hot (categorical) encoding, the dataset has been batched.")
 
-    return ds_train, ds_test, NUM_CLASSES, label_info
+    return ds_train, ds_test, NUM_CLASSES
 
-def create_model(num_classes):
+def create_model(NUM_CLASSES):
     eff_net = EfficientNetB3(
         include_top = True,
-        # weights = None,
         weights = 'imagenet',
 
+        # weights = None,
         # below only applicable if 'weights = None'
         # classes = NUM_CLASSES,
         # input_shape = (IMG_SIZE, IMG_SIZE, 3),
@@ -138,7 +163,7 @@ def create_model(num_classes):
     inputs = keras.Input(shape = (IMG_SIZE, IMG_SIZE, 3))
 
     outputs = eff_net(inputs)
-    outputs = layers.Dense(num_classes, activation = 'softmax')(outputs)
+    outputs = layers.Dense(NUM_CLASSES, activation = 'softmax')(outputs)
 
     optimizer = optimizers.legacy.Adam(learning_rate = 0.0001)
     loss = losses.CategoricalCrossentropy()
@@ -154,40 +179,41 @@ def create_model(num_classes):
     return model
 
 def main():
-
-    ds_train, ds_test, NUM_CLASSES, label_info = load_dataset()
-
-    if os.path.isdir('checkpoints'):
-
-        most_recent = max([int(dir.split('_')[1]) for dir in os.listdir(CHECKPOINT_PATH)])
-        model = tf.keras.models.load_model(f'{CHECKPOINT_PATH}/checkpoints_{most_recent}')
-
-        loss, acc = model.evaluate(ds_test, verbose=2)
-        print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
-
+    
+    if args['dataset_path']:
+        ds_train, ds_test, NUM_CLASSES = load_dataset(args['dataset_path'])
     else:
+        ds_train, ds_test, NUM_CLASSES = load_dataset()
 
-        model = create_model(NUM_CLASSES)
+    model = create_model(NUM_CLASSES) # passing in n_classes for sake of readability & reusability
 
-        callbacks = [
-            callbacks.ModelCheckpoint(
-                CHECKPOINT_PATH + '/checkpoints_{epoch:02d}',
-                verbose = 2,
-                save_freq = 4 * len(ds_train),
-            )
-        ]
+    if args['checkpoint_path']:
+        CHECKPOINT_PATH = args['checkpoint_path']
 
-        # model.summary()
-
-        hist = model.fit(
-            ds_train,
-            epochs = EPOCHS,
+    elif os.path.isdir('checkpoint'): # to avoid writing over checkpoints that already exist
+        CHECKPOINT_PATH = 'checkpoint_' + str(current_milli_time())[:2]
+        
+    print("lenght of ds train:", len(ds_train))
+    callbacks = [
+        callbacks.ModelCheckpoint(
+            filepath = CHECKPOINT_PATH,
+            save_best_only = True,
             verbose = 1,
-            validation_data = ds_test,
-            callbacks = callbacks,
+            save_freq = CHKPT_EPOCH_SAVE_FREQ * len(ds_train),
         )
+    ]
 
-        plot_hist(hist)
+    model.summary()
+
+    model = model.fit(
+        ds_train,
+        epochs = EPOCHS,
+        verbose = 1,
+        validation_data = ds_test,
+        callbacks = callbacks,
+    )
+
+    plot_hist(model)
 
 if __name__ == "__main__":
     main()
