@@ -2,7 +2,7 @@
 """
 Author: Victor J.
 Description: Transfer learning from TensorFlow EfficientNet image classification model,
-first go :)
+first go using the Stanford dog dataset, primer for using my custom krunker dataset :)
 Date: Winter 2023
 """
 
