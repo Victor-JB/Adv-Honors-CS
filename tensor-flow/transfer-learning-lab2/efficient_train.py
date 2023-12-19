@@ -18,7 +18,7 @@ import keras
 from keras import layers
 from keras.applications import EfficientNetB3
 import math
-from utils import current_milli_time
+from utils import current_milli_time, rolling_average
 import argparse
 
 # doesn't seem to be working...
@@ -27,14 +27,14 @@ tf.get_logger().setLevel('ERROR') # disable those pesky tf warnings
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
-EPOCHS = 100
+EPOCHS = 1000
 DEFAULT_DATASET_NAME = "stanford_dogs"
-CHKPT_EPOCH_SAVE_FREQ = 3
+CHKPT_EPOCH_SAVE_FREQ = 10
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-d", "--dataset_path", required = False,
                help = "Enter custom dataset path to train classifier from")
-ap.add_argument("-c", "--checkpoint_path", required = False,
+ap.add_argument("-c", "--CHECKPOINT_DIR", required = False,
                help = "Enter custom model checkpoint path")
 ap.add_argument("-r", "--resume_checkpoint", required = False,
                help = "Enter checkpoint path fron which to resume training")
@@ -94,13 +94,48 @@ def input_preprocess_test(image, label):
     label = tf.one_hot(label, NUM_CLASSES)
     return image, label
 
-def plot_hist(model):
-    plt.plot(model.history["accuracy"])
-    plt.plot(model.history["val_accuracy"])
-    plt.title("model accuracy")
-    plt.ylabel("accuracy")
-    plt.xlabel("epoch")
-    plt.legend(["train", "validation"], loc="upper left")
+def plot_hist(history):
+    # 5 chosen below for r_avg arbitrarily; is window which rolling avg computes 
+    """
+    plt.plot(EPOCHS, rolling_average(history.history["accuracy"], 5), 
+             'bo', label='Training acc'
+            )
+    plt.plot(EPOCHS, rolling_average(history.history["val_accuracy"], 5), 
+             'b', label='Validation acc'
+             )
+    """
+    plt.plot(EPOCHS, history.history["accuracy"], 
+             'bo', label='Training acc'
+            )
+    plt.plot(EPOCHS, history.history["val_accuracy"], 
+             'b', label='Validation acc'
+             )
+
+    plt.title('Training and validation accuracy')
+    plt.legend()
+    plt.savefig('1000_acc_epochs.png')
+
+    plt.figure()
+
+    """
+    plt.plot(EPOCHS, rolling_average(history.history["loss"], 5), 
+             'bo', label='Training loss'
+             )
+    plt.plot(EPOCHS, rolling_average(history.history["val_loss"], 5), 
+             'b', label='Validation loss'
+             )
+    """
+    plt.plot(EPOCHS, history.history["loss"], 
+             'bo', label='Training loss'
+             )
+    plt.plot(EPOCHS, history.history["val_loss"], 
+             'b', label='Validation loss'
+             )
+
+    plt.title('Training and validation loss')
+    plt.legend()
+
+    plt.savefig('1000_loss_epochs.png')
     plt.show()
 
 def load_dataset(DS_PATH=None):
@@ -215,17 +250,17 @@ def main():
     else:
         model = create_model(NUM_CLASSES) # passing in n_classes for sake of readability & reusability
 
-    CHECKPOINT_PATH = 'checkpoints' # was getting UnboundLocalVar error when defining globally
-    if args['checkpoint_path']:
-        CHECKPOINT_PATH = args['checkpoint_path']
+    CHECKPOINT_DIR = 'checkpoints' # was getting UnboundLocalVar error when defining globally
+    if args['CHECKPOINT_DIR']:
+        CHECKPOINT_DIR = args['CHECKPOINT_DIR']
 
-    elif os.path.isdir(CHECKPOINT_PATH): # to avoid writing over checkpoints that already exist
-        CHECKPOINT_PATH = 'checkpoints_' + str(current_milli_time())[10:]
+    elif os.path.isdir(CHECKPOINT_DIR): # to avoid writing over checkpoints that already exist
+        CHECKPOINT_DIR = 'checkpoints_' + str(current_milli_time())[10:]
 
-    print(f"\nSaving checkpoints at {CHECKPOINT_PATH}")
+    print(f"\nSaving checkpoints at {CHECKPOINT_DIR}")
     callback = [
         callbacks.ModelCheckpoint(
-            filepath = CHECKPOINT_PATH,
+            filepath = CHECKPOINT_DIR + '/checkpoint_{epoch:02d}',
             # save_best_only = True,
             verbose = 1,
             save_freq = CHKPT_EPOCH_SAVE_FREQ * len(ds_train),
@@ -235,7 +270,7 @@ def main():
     model.summary()
 
     print() # console formatting ;)
-    model = model.fit(
+    history = model.fit(
         ds_train,
         epochs = EPOCHS,
         # batch_size = BATCH_SIZE, <-- batching done in preprocessing
@@ -244,7 +279,7 @@ def main():
         callbacks = callback,
     )
 
-    plot_hist(model)
+    plot_hist(history)
 
 if __name__ == "__main__":
     main()
