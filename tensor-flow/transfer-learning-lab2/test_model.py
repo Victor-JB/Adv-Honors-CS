@@ -1,24 +1,25 @@
 
+import tensorflow as tf
+import argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument("-c", "--checkpoint_path", required = True,
+               help = "Checkpoint path from which to load model")
+ap.add_argument("-e", "--eval_ds_path", required = False,
+               help = "Path with dataset from which to evaluate the model")
+args = vars(ap.parse_args())
+
 def main():
-    if CHECKPOINT_EVAL_PATH:
 
-        try:
-            os.path.isdir(CHECKPOINT_EVAL_PATH)
-        except:
-            print(f"\nPath {CHECKPOINT_EVAL_PATH} is not a valid checkpoint path.")
+    model = tf.keras.models.load_model(args['checkpoint_path'])
+    print(f"\nModel at '{args['checkpoint_path']}' loaded successfully\n")
+    model.summary()
 
-        print(f"\nCheckpoint at {CHECKPOINT_EVAL_PATH} exist... loading in model from most recent checkpoint")
+    if args['eval_ds_path']:
+        print(f"\n\nEvaluating it with dataset at {args['eval_ds_path']}")
 
-        if len(os.listdir(CHECKPOINT_EVAL_PATH)) > 1:
-            most_recent = max([int(dir.split('_')[1]) for dir in os.listdir(CHECKPOINT_EVAL_PATH)])
-            CHECKPOINT_EVAL_PATH = f'{CHECKPOINT_EVAL_PATH}/checkpoints_{most_recent}'
+        ds_train, ds_test, NUM_CLASSES = load_dataset(args['eval_ds_path'])
 
-        model = tf.keras.models.load_model(ckpt_path)
-
-        print(f"\nModel at '{ckpt_path}' loaded successfully; model structure: ")
-        print(model.summary())
-
-        print("\nEvaluating it with loaded dataset...")
-
+        # import load_dataset from training file...
         loss, acc = model.evaluate(ds_test, verbose=1)
         print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
