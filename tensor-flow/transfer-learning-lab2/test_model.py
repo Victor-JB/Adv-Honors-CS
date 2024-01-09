@@ -1,33 +1,73 @@
 
+"""
+Author: Victor J.
+Description: Script for testing and evaluating a given efficient_net model
+Date: Winter 2023
+"""
+
 import tensorflow as tf
+from keras.models import load_model
+import cv2
 import argparse
+# from efficient_train import load_dataset
+# from efficient_train import IMG_SIZE as effnet_img_size
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-c", "--checkpoint_path", required = True,
+ap.add_argument("-c", "--checkpoint_path", required = False,
                help = "Checkpoint path from which to load model")
 ap.add_argument("-i", "--test_image_path", required = False,
                help = "Image path from which to test with one image")
-ap.add_argument("-d", "--test_dataset_path", required = False,
-               help = "Dataset path with test images")
+# BELOW BROKEN: can't import efficient_net without argparse stuff being overwritten
+# by the other file (efficient_train) overwriting argparse variables of this file; strange
 ap.add_argument("-e", "--eval_ds_path", required = False,
                help = "Path with dataset from which to evaluate the model")
 args = vars(ap.parse_args())
 
+DEFAULT_MODEL_PATH = 'archived_dog_ds_checkpoints/checkpoints_97'
+DEFAULT_TEST_IMAGE_PATH = 'dogs_model_testing_images/borzoi.jpg'
+effnet_img_size = 300
+IMG_SHAPE = (effnet_img_size, effnet_img_size)
+
 def main():
 
-    model = tf.keras.models.load_model(args['checkpoint_path'])
-    print(f"\nModel at '{args['checkpoint_path']}' loaded successfully\n")
+    if args['checkpoint_path']:
+        print(f"Loading model from provided checkpoint path '{args['checkpoint_path']}'...")
+        model = tf.keras.models.load_model(args['checkpoint_path'])
+        print(f"\nModel at '{args['checkpoint_path']}' loaded successfully\n")
+    else:
+        print(f"Using default model path located at '{DEFAULT_MODEL_PATH}'...")
+        model = tf.keras.models.load_model(DEFAULT_MODEL_PATH)
+        print(f"\nModel at '{DEFAULT_MODEL_PATH}' loaded successfully\n")
+
     model.summary()
 
     if args['test_image_path']:
-        
-        
+        print(f"\nTesting with custom image path '{args['test_image_path']}'")
+
+        img = cv2.imread(args['test_image_path'])
+        img = cv2.resize(img, IMG_SHAPE) # resize image to match model's expected sizing
+        img = img.reshape(1, effnet_img_size, effnet_img_size, 3)
+
+        result = model.predict(img)
+        classes = result.argmax(axis=-1)
+        print(classes)
+
+    elif not args['checkpoint_path']: # avoiding testing dog images on random user model
+        print(f"\nTesting default model with dog image located at '{DEFAULT_TEST_IMAGE_PATH}'...")
+
+        img = cv2.imread(DEFAULT_TEST_IMAGE_PATH)
+        img = cv2.resize(img, IMG_SHAPE) # resize image to match model's expected sizing
+        img = img.reshape(1, effnet_img_size, effnet_img_size, 3)
+
+        result = model.predict(img)
+        classes = result.argmax(axis=-1)
+        print(classes)
 
     if args['eval_ds_path']:
         print(f"\n\nEvaluating it with dataset at {args['eval_ds_path']}")
-
-        ds_train, ds_test, NUM_CLASSES = load_dataset(args['eval_ds_path'])
-
-        # import load_dataset from training file...
+        _, ds_test, NUM_CLASSES = load_dataset(args['eval_ds_path'])
         loss, acc = model.evaluate(ds_test, verbose=1)
         print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
+
+if __name__ == "__main__":
+    main()
