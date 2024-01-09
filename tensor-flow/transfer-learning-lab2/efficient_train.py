@@ -2,7 +2,7 @@
 """
 Author: Victor J.
 Description: Transfer learning from TensorFlow EfficientNet image classification model,
-first go :)
+lots of customizable training options
 Date: Winter 2023
 """
 
@@ -27,17 +27,19 @@ tf.get_logger().setLevel('ERROR') # disable those pesky tf warnings
 # IMG_SIZE is determined by EfficientNet model choice; B3, in this case
 IMG_SIZE = 300
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
-EPOCHS = 1000
+EPOCHS = 1
 DEFAULT_DATASET_NAME = "stanford_dogs"
 CHKPT_EPOCH_SAVE_FREQ = 10
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-d", "--dataset_path", required = False,
                help = "Enter custom dataset path to train classifier from")
-ap.add_argument("-c", "--CHECKPOINT_DIR", required = False,
+ap.add_argument("-c", "--ckpt_save_dir", required = False,
                help = "Enter custom model checkpoint path")
 ap.add_argument("-r", "--resume_checkpoint", required = False,
-               help = "Enter checkpoint path fron which to resume training")
+               help = "Enter checkpoint path from which to resume training")
+# ap.add_argument("-s", "--ds_size", required = False, # not currently implemented; for the future
+               # help = "Resize ds by certain percent to be smaller for faster training")
 args = vars(ap.parse_args())
 
 # applying certain transformations to my images to augment them and increase ds size
@@ -48,7 +50,9 @@ IMG_AUGMENTATION_LAYERS = [
     layers.RandomContrast(factor=0.1),
 ]
 
-def format_label(label_info, label):
+# the below was my attempt at augmentation / some more preprocessing; inspired by
+# stackoverflow and the keras.io website
+def format_label(label_info, label): # only used in display functions; not critical to preprocessing
     string_label = label_info.int2str(label)
     return string_label.split("-")[1]
 
@@ -95,19 +99,19 @@ def input_preprocess_test(image, label):
     return image, label
 
 def plot_hist(history):
-    # 5 chosen below for r_avg arbitrarily; is window which rolling avg computes 
+    # 5 chosen below for r_avg arbitrarily; is window which rolling avg computes
     """
-    plt.plot(EPOCHS, rolling_average(history.history["accuracy"], 5), 
+    plt.plot(EPOCHS, rolling_average(history.history["accuracy"], 5),
              'bo', label='Training acc'
             )
-    plt.plot(EPOCHS, rolling_average(history.history["val_accuracy"], 5), 
+    plt.plot(EPOCHS, rolling_average(history.history["val_accuracy"], 5),
              'b', label='Validation acc'
              )
     """
-    plt.plot(EPOCHS, history.history["accuracy"], 
+    plt.plot(EPOCHS, history.history["accuracy"],
              'bo', label='Training acc'
             )
-    plt.plot(EPOCHS, history.history["val_accuracy"], 
+    plt.plot(EPOCHS, history.history["val_accuracy"],
              'b', label='Validation acc'
              )
 
@@ -118,17 +122,17 @@ def plot_hist(history):
     plt.figure()
 
     """
-    plt.plot(EPOCHS, rolling_average(history.history["loss"], 5), 
+    plt.plot(EPOCHS, rolling_average(history.history["loss"], 5),
              'bo', label='Training loss'
              )
-    plt.plot(EPOCHS, rolling_average(history.history["val_loss"], 5), 
+    plt.plot(EPOCHS, rolling_average(history.history["val_loss"], 5),
              'b', label='Validation loss'
              )
     """
-    plt.plot(EPOCHS, history.history["loss"], 
+    plt.plot(EPOCHS, history.history["loss"],
              'bo', label='Training loss'
              )
-    plt.plot(EPOCHS, history.history["val_loss"], 
+    plt.plot(EPOCHS, history.history["val_loss"],
              'b', label='Validation loss'
              )
 
@@ -142,12 +146,17 @@ def load_dataset(DS_PATH=None):
 
     global NUM_CLASSES # need to do this for input_preprocess functions--not sure of better way
     if DS_PATH:
+        """
+        if args['ds_size']:
+            print(f"Resizing unavailable for custom dataset... manually resize ds dir\
+ and input the new path\nContinuing training with full size dataset '{DS_PATH}'")
+        """
         # will handle ds path validation for me
         ds_train, ds_test = tf.keras.utils.image_dataset_from_directory(
             DS_PATH,
             label_mode = 'categorical',
             image_size = (IMG_SIZE, IMG_SIZE),
-            seed = 69420,
+            seed = 18181,
             validation_split = 0.30,
             batch_size = BATCH_SIZE,
             subset = 'both',
@@ -164,8 +173,26 @@ def load_dataset(DS_PATH=None):
 
     else:
         print(f"\nNo dataset provided; using standard dataset '{DEFAULT_DATASET_NAME}'")
+
+        """
+        For future feature
+        if args['ds_size']:
+            print(f"Resizing dataset to {ds_size}%...\n")
+            train_split_str = f'train[:{ds_size}%]'
+            test_split_str = f'test[:{ds_size}%]'
+        else:
+            train_split_str = 'train'
+            test_split_str = 'test'
+        """
+
+        train_split_str = 'train'
+        test_split_str = 'test'
+
         (ds_train, ds_test), ds_info = tfds.load(
-                DEFAULT_DATASET_NAME, split=["train", "test"], with_info=True, as_supervised=True
+                DEFAULT_DATASET_NAME,
+                split=[train_split_str, test_split_str],
+                with_info=True,
+                as_supervised=True
         )
 
         NUM_CLASSES = ds_info.features["label"].num_classes
@@ -180,14 +207,14 @@ def load_dataset(DS_PATH=None):
         ds_train = ds_train.map(input_preprocess_tfds_train, num_parallel_calls=tf.data.AUTOTUNE)
         ds_test = ds_test.map(input_preprocess_test, num_parallel_calls=tf.data.AUTOTUNE)
 
-        # needs to be batched here... batching in .fit doesn't work
+        # needs to be batched here... batching in .fit doesn't work :(
         ds_train = ds_train.batch(batch_size=BATCH_SIZE, drop_remainder=True)
         ds_test = ds_test.batch(batch_size=BATCH_SIZE, drop_remainder=True)
 
     print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes")
 
-    # display_data_sample(ds_train, label_info)
-    # display_aug_data_sample(ds_train, label_info)
+    # display_data_sample(ds_train, label_info) # doesn't work with the mapping / batching above
+    # display_aug_data_sample(ds_train, label_info) # ibid
 
     ds_train = ds_train.prefetch(tf.data.AUTOTUNE)
 
@@ -209,7 +236,7 @@ def create_model(NUM_CLASSES):
         # classifier_activation='softmax',
     )
 
-    print(f"\nCreated model: {eff_net}\n")
+    print(f"\nCreated new model: {eff_net}")
 
     eff_net.trainable = False
 
@@ -242,6 +269,7 @@ def main():
         ds_train, ds_test, NUM_CLASSES = load_dataset(args['dataset_path'])
     else:
         ds_train, ds_test, NUM_CLASSES = load_dataset()
+        # print("Testing taking just a few:", ds_train.unbatch().take(320)[1])
 
     if args['resume_checkpoint']:
         model = tf.keras.models.load_model(args['resume_checkpoint'])
@@ -251,13 +279,13 @@ def main():
         model = create_model(NUM_CLASSES) # passing in n_classes for sake of readability & reusability
 
     CHECKPOINT_DIR = 'checkpoints' # was getting UnboundLocalVar error when defining globally
-    if args['CHECKPOINT_DIR']:
-        CHECKPOINT_DIR = args['CHECKPOINT_DIR']
+    if args['ckpt_save_dir']:
+        CHECKPOINT_DIR = args['ckpt_save_dir']
 
     elif os.path.isdir(CHECKPOINT_DIR): # to avoid writing over checkpoints that already exist
         CHECKPOINT_DIR = 'checkpoints_' + str(current_milli_time())[10:]
 
-    print(f"\nSaving checkpoints at {CHECKPOINT_DIR}")
+    print(f"\nSaving checkpoints at '{CHECKPOINT_DIR}'; saving every {CHKPT_EPOCH_SAVE_FREQ} epochs\n")
     callback = [
         callbacks.ModelCheckpoint(
             filepath = CHECKPOINT_DIR + '/checkpoint_{epoch:02d}',
@@ -269,7 +297,7 @@ def main():
 
     model.summary()
 
-    print() # console formatting ;)
+    print(f"\nStarting model training for {EPOCHS} epochs...\n") # console formatting ;)
     history = model.fit(
         ds_train,
         epochs = EPOCHS,
@@ -280,6 +308,7 @@ def main():
     )
 
     plot_hist(history)
+
 
 if __name__ == "__main__":
     main()
