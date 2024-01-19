@@ -1,7 +1,7 @@
 
 """
 Author: Victor J.
-Description: CNN created from scratch
+Description: CLASS-based CNN created from scratch
 Date: Winter 2023
 """
 
@@ -44,7 +44,6 @@ class Model():
             3,
             strides=1,
             activation=activations.relu,
-            input_shape=input_size,
         ))
         # size after conv: 25 x 25 x 18
 
@@ -76,4 +75,9 @@ class Model():
 
 # ---------------------------------------------------------------------------- #
 # input size calculated previously; in-class arithmetic
-model = Model((227, 277, 3))
+model = Model((227, 227, 3))
+model.model.summary()
+
+
+# load data, include model.model.fit() for actual training
+# include some checkpoints
