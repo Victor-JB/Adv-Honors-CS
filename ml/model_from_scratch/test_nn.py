@@ -4,7 +4,6 @@ import numpy as np
 def activation(num):
     return ((num*.1) + .5)
 
-
 def return_nn_weights(m1, expected, w1=np.array([1, 1, 1])):
     prediction = m1 @ w1
     # print(prediction)
@@ -14,7 +13,6 @@ def return_nn_weights(m1, expected, w1=np.array([1, 1, 1])):
 
     accuracy = [1 if p > 0.5 else 0 for p in Ps]
     print(accuracy)
-
 
     accuracy = sum([x for i, p in enumerate(accuracy) if p == expected[i]])
 
