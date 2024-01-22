@@ -33,6 +33,8 @@ class Model():
         # only needed if no activation in first cov2d
         # self.model.add(layers.Activation(activations.relu))
 
+        self.model.add(layers.BatchNormalization())
+
         self.model.add(layers.MaxPooling2D(
             pool_size=3,
             strides=2,
@@ -53,12 +55,18 @@ class Model():
         ))
         # Size after pool: 12 x 12 x 18
 
+
         self.model.add(layers.Flatten())
         # size: 2592
 
         self.model.add(layers.Dense(512, activation=activations.relu))
+        self.model.add(layers.Dropout(0.5))
+        
         self.model.add(layers.Dense(128, activation=activations.relu))
+        self.model.add(layers.Dropout(0.5))
+
         self.model.add(layers.Dense(32, activation=activations.relu))
+        self.model.add(layers.Dropout(0.5))
 
         # size of last Dense layer must match # of classes
         self.model.add(layers.Dense(5, activation=activations.softmax))
