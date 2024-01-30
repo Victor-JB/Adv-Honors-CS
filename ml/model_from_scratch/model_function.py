@@ -6,22 +6,27 @@ Date: Winter 2023
 """
 
 import cv2
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # disables extensive tensorflow debugging msgs
+
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.activations as activations
 import tensorflow.keras.optimizers as optimizers
+import tensorflow.keras.callbacks as callbacks
 import tensorflow.keras.losses as losses
+import matplotlib.pyplot as plt
+import argparse
 from utils import current_milli_time, rolling_average
 
 IMG_SIZE = 227
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
-EPOCHS = 1
-DEF_DATASET_NAME = "datasets/krunker"
+EPOCHS = 500
 CHKPT_EPOCH_SAVE_FREQ = 10
 CHECKPOINT_DIR = 'checkpoints'
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-d", "--dataset_path", required = False,
+ap.add_argument("-d", "--dataset_path", required = True,
                help = "Enter custom dataset path to train classifier from")
 ap.add_argument("-c", "--ckpt_save_dir", required = False,
                help = "Enter custom model checkpoint path")
@@ -32,57 +37,36 @@ ap.add_argument("-r", "--resume_checkpoint", required = False,
 args = vars(ap.parse_args())
 
 def plot_hist(history):
-    # 5 chosen below for r_avg arbitrarily; is window which rolling avg computes
-    """
-    plt.plot(EPOCHS, rolling_average(history.history["accuracy"], 5),
-             'bo', label='Training acc'
-            )
-    plt.plot(EPOCHS, rolling_average(history.history["val_accuracy"], 5),
-             'b', label='Validation acc'
-             )
-    """
-    plt.plot(EPOCHS, history.history["accuracy"],
-             'bo', label='Training acc'
-            )
-    plt.plot(EPOCHS, history.history["val_accuracy"],
-             'b', label='Validation acc'
-             )
+    # list all data in history
+    print("All history output keys: ", history.history.keys())
 
-    plt.title('Training and validation accuracy')
-    plt.legend()
-    plt.savefig('1000_acc_epochs.png')
+    # summarize history for accuracy
+    plt.plot(rolling_average(history.history['accuracy'], 5))
+    plt.plot(rolling_average(history.history['val_accuracy'], 5))
+    plt.title('Model accuracies v epochs')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
 
-    plt.figure()
-
-    """
-    plt.plot(EPOCHS, rolling_average(history.history["loss"], 5),
-             'bo', label='Training loss'
-             )
-    plt.plot(EPOCHS, rolling_average(history.history["val_loss"], 5),
-             'b', label='Validation loss'
-             )
-    """
-    plt.plot(EPOCHS, history.history["loss"],
-             'bo', label='Training loss'
-             )
-    plt.plot(EPOCHS, history.history["val_loss"],
-             'b', label='Validation loss'
-             )
-
-    plt.title('Training and validation loss')
-    plt.legend()
-
-    plt.savefig('1000_loss_epochs.png')
+    # summarize history for loss
+    plt.plot(rolling_average(history.history['loss'], 5))
+    plt.plot(rolling_average(history.history['val_loss'], 5))
+    plt.title('Model losses v epochs')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
     plt.show()
 
 def load_dataset(DS_PATH):
     # will handle ds path validation for me
+    print(DS_PATH)
     ds_train, ds_test = tf.keras.utils.image_dataset_from_directory(
         DS_PATH,
         label_mode = 'categorical',
         image_size = (IMG_SIZE, IMG_SIZE),
         seed = 18181,
-        validation_split = 0.30,
+        validation_split = 0.40,
         batch_size = BATCH_SIZE,
         subset = 'both',
     )
@@ -98,9 +82,9 @@ def load_dataset(DS_PATH):
     print("\nDataset has been resized to uniform IMG_SIZE, labels have been put \
 into one-hot (categorical) encoding, the dataset has been batched.")
 
-    return ds_train, ds_test
+    return ds_train, ds_test, NUM_CLASSES
 
-def sequential_model(input_size):
+def sequential_model(input_size, num_classes):
     model = tf.keras.Sequential()
     # depth, frame size, stride
     # first layer of sequential model needs to include input_shape arg
@@ -152,7 +136,7 @@ def sequential_model(input_size):
     model.add(layers.Dropout(0.5))
 
     # size of last Dense layer must match # of classes
-    model.add(layers.Dense(5, activation=activations.softmax))
+    model.add(layers.Dense(num_classes, activation=activations.softmax))
 
     optimizer = optimizers.Adam(learning_rate=0.0001)
     loss = losses.CategoricalCrossentropy()
@@ -170,17 +154,14 @@ def sequential_model(input_size):
 # ---------------------------------------------------------------------------- #
 # input size calculated previously; in-class arithmetic
 
-if args['dataset_path']:
-    ds_train, ds_test = load_dataset(args['dataset_path'])
-else:
-    ds_train, ds_test = load_dataset(DEF_DATASET_NAME)
+ds_train, ds_test, num_classes = load_dataset(args['dataset_path'])
 
 if args['resume_checkpoint']:
     model = tf.keras.models.load_model(args['resume_checkpoint'])
     print(f"\nModel at '{args['resume_checkpoint']}' loaded successfully")
 else:
     input_size = (IMG_SIZE, IMG_SIZE, 3)
-    model = sequential_model(input_size)
+    model = sequential_model(input_size, num_classes)
 
 if args['ckpt_save_dir']:
     CHECKPOINT_DIR = args['ckpt_save_dir']
@@ -189,6 +170,7 @@ elif os.path.isdir(CHECKPOINT_DIR): # to avoid writing over checkpoints that alr
     CHECKPOINT_DIR = 'checkpoints_' + str(current_milli_time())[10:]
 
 print(f"\nSaving checkpoints at '{CHECKPOINT_DIR}'; saving every {CHKPT_EPOCH_SAVE_FREQ} epochs\n")
+
 callback = [
     callbacks.ModelCheckpoint(
         filepath = CHECKPOINT_DIR + '/checkpoint_{epoch:02d}',
@@ -198,7 +180,7 @@ callback = [
     )
 ]
 
-print(f"\nStarting model training for {EPOCHS} epochs...\n") # console formatting ;)
+print(f"Starting model training for {EPOCHS} epochs...\n") # console formatting ;)
 history = model.fit(
     ds_train,
     epochs = EPOCHS,
