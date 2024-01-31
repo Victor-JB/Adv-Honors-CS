@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import argparse
 from utils import current_milli_time, rolling_average
 
-IMG_SIZE = 227
+IMG_SIZE = 227 # input size calculated previously; in-class arithmetic
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
 EPOCHS = 500
 CHKPT_EPOCH_SAVE_FREQ = 10
@@ -152,7 +152,6 @@ def sequential_model(input_size, num_classes):
     return model
 
 # ---------------------------------------------------------------------------- #
-# input size calculated previously; in-class arithmetic
 
 ds_train, ds_test, num_classes = load_dataset(args['dataset_path'])
 
