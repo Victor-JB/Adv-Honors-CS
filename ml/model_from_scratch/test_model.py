@@ -23,8 +23,6 @@ ap.add_argument("-e", "--eval_ds_path", required = False,
                help = "Path with dataset from which to evaluate the model")
 args = vars(ap.parse_args())
 
-DEFAULT_MODEL_PATH = 'archived_dog_ds_checkpoints/checkpoints_97'
-DEFAULT_TEST_IMAGE_PATH = 'dogs_model_testing_images/borzoi.jpg'
 effnet_img_size = 300
 IMG_SHAPE = (effnet_img_size, effnet_img_size)
 
