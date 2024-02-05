@@ -12,9 +12,9 @@ import argparse
 # from model_function import load_dataset
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-c", "--checkpoint_path", required = False,
+ap.add_argument("-c", "--checkpoint_path", required = True,
                help = "Checkpoint path from which to load model")
-ap.add_argument("-i", "--test_image_path", required = False,
+ap.add_argument("-i", "--test_image_path", required = True,
                help = "Image path from which to test with one image")
 
 # BELOW BROKEN: can't import efficient_net without argparse stuff being overwritten
@@ -25,46 +25,25 @@ args = vars(ap.parse_args())
 
 IMG_SIZE = 227
 IMG_SHAPE = (IMG_SIZE, IMG_SIZE)
-DEFAULT_CKP_PATH = "checkpoints_255/checkpoint_40"
-DEF_TEST_IMG_PATH = "new_test_krunker_images"
 
 def main():
 
-    if args['checkpoint_path']:
-        print(f"Loading model from provided checkpoint path '{args['checkpoint_path']}'...")
-        model = tf.keras.models.load_model(args['checkpoint_path'])
+    print(f"Loading model from provided checkpoint path '{args['checkpoint_path']}'...")
+    # compile False loads in the model just for inference
+    model = tf.keras.models.load_model(args['checkpoint_path'], compile=False)
 
-        print(f"\nModel at '{args['checkpoint_path']}' loaded successfully\n")
-        model.summary()
+    print(f"\nModel at '{args['checkpoint_path']}' loaded successfully\n")
+    model.summary()
 
-    else:
-        print(f"Loading model from default checkpoint path '{DEFAULT_CKP_PATH}'...")
-        model = tf.keras.models.load_model(DEFAULT_CKP_PATH)
+    print(f"\nTesting with custom image path '{args['test_image_path']}'")
 
-        print(f"\nModel at '{DEFAULT_CKP_PATH}' loaded successfully\n")
-        model.summary()
+    img = cv2.imread(args['test_image_path'])
+    img = cv2.resize(img, IMG_SHAPE) # resize image to match model's expected sizing
+    img = img.reshape(1, IMG_SIZE, IMG_SIZE, 3)
 
-    if args['test_image_path']:
-        print(f"\nTesting with custom image path '{args['test_image_path']}'")
-
-        img = cv2.imread(args['test_image_path'])
-        img = cv2.resize(img, IMG_SHAPE) # resize image to match model's expected sizing
-        img = img.reshape(1, IMG_SIZE, IMG_SIZE, 3)
-
-        result = model.predict(img)
-        classes = result.argmax(axis=-1)
-        print(classes)
-
-    else:
-        print(f"\nTesting with default image path '{DEF_TEST_IMG_PATH}'")
-
-        img = cv2.imread(DEF_TEST_IMG_PATH)
-        img = cv2.resize(img, IMG_SHAPE) # resize image to match model's expected sizing
-        img = img.reshape(1, IMG_SIZE, IMG_SIZE, 3)
-
-        result = model.predict(img)
-        classes = result.argmax(axis=-1)
-        print(classes)
+    result = model.predict(img)
+    classes = result.argmax(axis=-1)
+    print(classes)
 
     if args['eval_ds_path']:
         print(f"\n\nEvaluating it with dataset at {args['eval_ds_path']}")
