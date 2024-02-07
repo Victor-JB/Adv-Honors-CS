@@ -5,6 +5,7 @@ Description: Script for testing and evaluating a given efficient_net model
 Date: Winter 2023
 """
 
+import os
 import tensorflow as tf
 import cv2
 # from model_function import IMG_SIZE
@@ -15,6 +16,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-c", "--checkpoint_path", required = True,
                help = "Checkpoint path from which to load model")
 ap.add_argument("-i", "--test_image_path", required = True,
+               help = "Image path from which to test with one image")
+ap.add_argument("-d", "--test_image_dir", required = False,
                help = "Image path from which to test with one image")
 
 # BELOW BROKEN: can't import efficient_net without argparse stuff being overwritten
@@ -44,6 +47,19 @@ def main():
     result = model.predict(img)
     classes = result.argmax(axis=-1)
     print(classes)
+
+    if args['test_image_dir']:
+        images = os.listdir(args['test_image_dir'])
+        
+        for image in images:
+            img = cv2.imread(args['test_image_dir'] + image)
+            img = cv2.resize(img, IMG_SHAPE) # resize image to match model's expected sizing
+            img = img.reshape(1, IMG_SIZE, IMG_SIZE, 3)
+
+            result = model.predict(img)
+            classes = result.argmax(axis=-1)
+            print(classes)
+
 
     if args['eval_ds_path']:
         print(f"\n\nEvaluating it with dataset at {args['eval_ds_path']}")
