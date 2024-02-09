@@ -70,7 +70,7 @@ def main():
                                   'width': screen_width,
                                   'height': screen_height}
 
-    print("Keyboard being input read... ready to record screen in real time\n1. 'p' key \
+    print("\nKeyboard being input read... ready to record screen in real time\n1. 'p' key \
 to toggle detection\n2. 'q' key to quit the program")
 
     model = load_model()
