@@ -9,7 +9,9 @@ import os
 import tensorflow as tf
 import cv2
 import argparse
-from learn_functionbased import load_dataset
+from utils import load_dataset
+import tensorflow.keras.optimizers as optimizers
+import tensorflow.keras.losses as losses
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-c", "--checkpoint_path", required = True,
@@ -61,7 +63,16 @@ def main():
     if args['eval_ds_path']:
         print(f"\n\nEvaluating it with dataset at {args['eval_ds_path']}")
 
-        _, ds_test, NUM_CLASSES = load_dataset(args['eval_ds_path'])
+        _, ds_test, NUM_CLASSES = load_dataset(args['eval_ds_path'], IMG_SIZE, 32)
+
+        optimizer = optimizers.Adam(learning_rate=0.0001)
+        loss = losses.CategoricalCrossentropy()
+
+        model.compile(
+            loss = loss,
+            optimizer = optimizer,
+            metrics = ['accuracy'],
+        )
         loss, acc = model.evaluate(ds_test, verbose=1)
 
         print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
