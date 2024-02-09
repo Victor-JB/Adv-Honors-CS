@@ -5,6 +5,9 @@ Description: Will screen record and predict if players are on screen in real tim
 Date: Winter 2024
 """
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # disables extensive tensorflow debugging msgs
+
 import mss.tools
 from pynput import keyboard
 from PIL import Image
@@ -72,7 +75,7 @@ to toggle detection\n2. 'q' key to quit the program")
 
     model = load_model()
 
-    print("Ready for detection...")
+    print("\nReady for detection...")
     while ON:
         if DETECTION_ACTIVE:
             sct_img = np.array(screenshotter.grab(screenshotter_bounding_box))
