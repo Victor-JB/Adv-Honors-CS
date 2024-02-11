@@ -19,7 +19,7 @@ except AttributeError:
 SCRNSHOT_PLAYER = False
 SCRNSHOT_NOT_PLAYER = False
 ON = True
-DS_DIR_NAME = "krunker_img_ds"
+DS_DIR_NAME = "new_krunker_img_ds"
 
 screenshotter = mss.mss()
 
@@ -29,6 +29,7 @@ def on_release(key):
 
     global SCRNSHOT_PLAYER
     global SCRNSHOT_NOT_PLAYER
+    global ON
 
     if key == 'p':
         SCRNSHOT_PLAYER = not SCRNSHOT_PLAYER
@@ -43,7 +44,6 @@ def on_release(key):
         print("SCRNSHOT_PLAYER is", SCRNSHOT_PLAYER)
 
     if key == 'q':
-        global ON
         ON = False
 
     return

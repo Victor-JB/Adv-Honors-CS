@@ -10,11 +10,17 @@ import time
 import numpy as np
 import tensorflow as tf
 import tensorflow.data as data
+from datetime import datetime
 
-
+# ---------------------------------------------------------------------------- #
 def current_milli_time():
     return round(time.time() * 1000)
 
+# ---------------------------------------------------------------------------- #
+def current_hr_time():
+    return datetime.now().strftime("%H-%M-%S")
+
+# ---------------------------------------------------------------------------- #
 def rolling_average(x, w):
     return np.convolve(x, np.ones(w), 'valid') / w
 
