@@ -1,3 +1,4 @@
+
 """
     Description: Plot training history from a .json file.
     Author: Millan Kumar (modified by Victor)
@@ -13,22 +14,21 @@ ap = argparse.ArgumentParser()
 ap.add_argument(
     "-p",
     "--plot-history-load-path",
-    required=True,
-    help="path (.json) to load training history from",
+    required = True,
+    help = "path (.json) to load training history from",
 )
 ap.add_argument(
     "-w",
     "--window-size",
-    required=False,
-    help="size of window for rolling accuracy/loss for validation",
-    default=3,
-    type=int,
+    required = False,
+    help = "size of window for rolling accuracy/loss for validation",
+    default = 3,
+    type = int,
 )
 
 args = vars(ap.parse_args())
 
 # ---------------------------------------------------------------------------- #
-
 def convert_to_rolling(lst, size):
     slice_size_lower = size // 2
     slice_size_upper = size - slice_size_lower
@@ -45,6 +45,7 @@ def convert_to_rolling(lst, size):
 
     return rolling
 
+# ---------------------------------------------------------------------------- #
 
 try:
 	with open(args["plot_history_load_path"], "r") as f:
