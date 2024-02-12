@@ -21,9 +21,10 @@ import tensorflow.data as data
 
 import matplotlib.pyplot as plt
 import argparse
-from utils import current_milli_time, rolling_average
+from ..utils import current_milli_time, rolling_average, current_hr_time, load_dataset
 
 IMG_SIZE = 227 # input size calculated previously; in-class arithmetic
+IMG_SIZE_v2 = 302 # model v2 image sizing
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
 EPOCHS = 50
 CHKPT_EPOCH_SAVE_FREQ = 5
@@ -43,37 +44,93 @@ ap.add_argument(
     "--plot-history-save-path",
     required=False,
     help="path (.json) to save training history to (will append if file exists)",
-    default=None,
+    default=f'model_{current_hr_time()}.json',
 )
 args = vars(ap.parse_args())
 
-# ---------------------------------------------------------------------------- #
-def load_dataset(DS_PATH):
-    # will handle ds path validation for me
-    print(DS_PATH)
-    ds_train, ds_test = tf.keras.utils.image_dataset_from_directory(
-        DS_PATH,
-        label_mode = 'categorical',
-        image_size = (IMG_SIZE, IMG_SIZE),
-        seed = 18181,
-        validation_split = 0.40,
-        batch_size = BATCH_SIZE,
-        subset = 'both',
+# ----------------------------------------------------------------------------
+def model_v2(input_size=(IMG_SIZE2, IMG_SIZE2, 3), num_classes=2):
+    model = tf.keras.Sequential()
+    #depth, frame size are first 2
+    # First layer of sequential modle should get input_shape as arg
+    # Input 302 x 302 x 3
+
+    model.add(layers.Conv2D(
+        32, 20,
+        strides = 6,
+        activation = activations.relu,
+        input_shape = input_size,
+        kernel_regularizer = tf.keras.regularizers.L2(),
+        ))
+
+    model.add(layers.BatchNormalization())
+    # 48 x 48 x 32
+
+    model.add(layers.Conv2D(
+        32, 3,
+        strides = 1,
+        activation = activations.relu,
+        kernel_regularizer = tf.keras.regularizers.L2(),
+        ))
+    model.add(layers.BatchNormalization())
+    model.add(layers.ZeroPadding2D(1))
+
+    model.add(layers.Conv2D(
+        40, 3,
+        strides = 1,
+        activation = activations.relu,
+        kernel_regularizer = tf.keras.regularizers.L2(),))
+
+    model.add(layers.ZeroPadding2D(1))
+
+    model.add(layers.Conv2D(
+        40, 3,
+        strides = 1,
+        activation = activations.relu,
+        kernel_regularizer = tf.keras.regularizers.L2(),))
+
+    model.add(layers.BatchNormalization())
+    model.add(layers.MaxPooling2D(
+        pool_size = 3,
+        strides = 2,
+    ))
+    model.add(layers.ZeroPadding2D(1))
+
+    model.add(layers.Conv2D(
+        40, 3,
+        strides = 2,
+        activation = activations.relu,
+    ))
+
+    model.add(layers.Flatten())
+    model.add(layers.Dropout(.7))
+
+    # Size 6760
+    model.add(layers.Dense(1024, activation = activations.relu))
+    model.add(layers.Dropout(0.5))
+
+    #self.model.add(layers.Dense(256, activation = activations.relu))
+   # self.model.add(layers.Dropout(0.5))
+    #self.model.add(layers.Dense(64, activation = activations.relu))
+   # self.model.add(layers.Dropout(0.5))
+    #self.model.add(layers.Dense(16, activation = activations.relu))
+
+    model.add(layers.Dense(512,
+        activation = activations.relu,))
+    model.add(layers.Dropout(.3))
+    model.add(layers.Dense(256,
+        activation = activations.relu,))
+    model.add(layers.Dropout(.3))
+    model.add(layers.Dense(num_classes,
+        activation = activations.softmax,))
+
+    optimizer = optimizers.Adam(learning_rate = 0.00005)
+    loss = losses.CategoricalCrossentropy()
+    model.compile(
+        loss = self.loss,
+        optimizer = self.optimizer,
+        metrics = ['accuracy']
     )
-
-    print(f"\nDataset images have been resized to ({IMG_SIZE}, {IMG_SIZE})")
-
-    NUM_CLASSES = len(ds_train.class_names)
-
-    print(f"\nDataset has been loaded; contains {NUM_CLASSES} classes")
-
-    ds_train = ds_train.cache().prefetch(buffer_size = data.AUTOTUNE)
-    ds_test = ds_test.cache().prefetch(buffer_size = data.AUTOTUNE)
-
-    print("\nDataset has been resized to uniform IMG_SIZE, labels have been put \
-into one-hot (categorical) encoding, the dataset has been batched.")
-
-    return ds_train, ds_test, NUM_CLASSES
 
 # ---------------------------------------------------------------------------- #
 def sequential_model(input_size, num_classes):
@@ -169,7 +226,6 @@ def save_model_json(history, json_path):
         json.dump(old_history, f, indent=4)
 
 # ---------------------------------------------------------------------------- #
-
 ds_train, ds_test, num_classes = load_dataset(args['dataset_path'])
 
 if args['resume_checkpoint']:

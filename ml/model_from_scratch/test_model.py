@@ -59,7 +59,6 @@ def main():
             classes = result.argmax(axis=-1)
             print(classes)
 
-
     if args['eval_ds_path']:
         print(f"\n\nEvaluating it with dataset at {args['eval_ds_path']}")
 
