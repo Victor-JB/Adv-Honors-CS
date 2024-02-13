@@ -22,9 +22,21 @@ ap.add_argument("-d", "--test_image_dir", required = False,
                help = "Image path from which to test with one image")
 ap.add_argument("-e", "--eval_ds_path", required = False,
                help = "Path with dataset from which to evaluate the model")
+ap.add_argument("-t", 
+                "--model_type", 
+                required = False,
+                help = "Specify which model you want to train with (0 or 1; will change to v1 or v2)",
+                default = 0,
+)
 args = vars(ap.parse_args())
 
-IMG_SIZE = 227
+if int(args['model_type']) == 0:
+    IMG_SIZE = 227
+elif int(args['model_type']) == 1:
+    IMG_SIZE = 302
+else:
+    raise ValueError('"--model_type" argument provided is not int 0 or 1')
+
 IMG_SHAPE = (IMG_SIZE, IMG_SIZE)
 
 def main():
@@ -47,7 +59,7 @@ def main():
         print(classes)
 
     if args['test_image_dir']:
-        print(f"\nTesting with directory of images at '{args['test_image_path']}'")
+        print(f"\nTesting with directory of images at '{args['test_image_dir']}'")
         images = os.listdir(args['test_image_dir'])
 
         for image in images:
