@@ -19,7 +19,7 @@ except AttributeError:
 SCRNSHOT_PLAYER = False
 SCRNSHOT_NOT_PLAYER = False
 ON = True
-DS_DIR_NAME = "new_krunker_img_ds"
+DS_DIR_NAME = "test_krunker_imgs"
 
 screenshotter = mss.mss()
 
@@ -61,20 +61,20 @@ def main():
 
     print("Keyboard being input read... ready to take screenshots\n1. 'p' key \
 to toggle screenshotting when player is IN the frame\n2. 'n' key to toggle when \
-player is NOT in view")
+player is NOT in view\n3. 'q' is to quit the program")
 
     while ON:
         if SCRNSHOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            output = f"{DS_DIR_NAME}/PLAYER/PLAYER_{current_milli_time()}.jpeg"
+            output = f"{DS_DIR_NAME}/PLAYER/PLAYER_{current_milli_time()}.png"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 
         elif SCRNSHOT_NOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            output = f"{DS_DIR_NAME}/NO_PLAYER/NO_PLAYER_{current_milli_time()}.jpeg"
+            output = f"{DS_DIR_NAME}/NO_PLAYER/NO_PLAYER_{current_milli_time()}.png"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 
