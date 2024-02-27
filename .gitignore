@@ -163,4 +163,5 @@ cython_debug/
 defungi/
 krunker_img_ds/
 new_krunker_ds_images/
+new_krunker_ds/
 *.zip
