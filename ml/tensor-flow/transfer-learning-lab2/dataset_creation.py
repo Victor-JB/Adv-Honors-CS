@@ -75,7 +75,7 @@ player is NOT in view\n3. 'q' is to quit the program")
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
             img_player_capture_counter += 1
 
-            if img_capture_counter % 100 == 0:
+            if img_player_capture_counter % 100 == 0:
                 print(img_player_capture_counter, "at", img_player_capture_counter)
 
         elif SCRNSHOT_NOT_PLAYER:
