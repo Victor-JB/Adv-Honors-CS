@@ -36,7 +36,7 @@ def gen_test_img():
 
     img = np.array(screenshotter.grab(bounds))
 
-    cv2.imshow(f"Window dimensions of ({top_y}, {top_x}), width={width}, height={height}", img)
+    cv2.imshow(f"Window dimensions of ({top_x}, {top_y}), width={width}, height={height}", img)
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()

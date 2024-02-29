@@ -90,10 +90,10 @@ def main():
     When split screen on my windows monitor
     """
     screenshotter_bounding_box = {
-        'top': 0, 
+        'top': 80, 
         'left': 0,
         'width': 1950,
-        'height': 870,
+        'height': 740,
     }
 
     """
