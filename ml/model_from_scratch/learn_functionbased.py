@@ -27,37 +27,53 @@ IMG_SIZE_v2 = 302 # model v2 image sizing
 
 BATCH_SIZE = 32 # supposed to be close to number of classes; 32 seemed better though, also power of 2
 
-EPOCHS = 80
-CHKPT_EPOCH_SAVE_FREQ = 5
-CHECKPOINT_DIR = 'checkpoints'
+EPOCHS = 200
+CHKPT_EPOCH_SAVE_FREQ = 10
+LEARNING_RATE_ADJUST_RATE = 40
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-d", "--dataset_path", required = True,
-               help = "Enter custom dataset path to train classifier from")
-ap.add_argument("-c", "--ckpt_save_dir", required = False,
-               help = "Enter custom model checkpoint path")
-ap.add_argument("-r", "--resume_checkpoint", required = False,
-               help = "Enter checkpoint path from which to resume training")
+ap.add_argument(
+    "-d", 
+    "--dataset_path", 
+    required = True,
+    help = "Enter custom dataset path to train classifier from"
+)
+ap.add_argument(
+    "-c", 
+    "--ckpt_save_dir", 
+    required = False,
+    help = "Enter custom model checkpoint path",
+    default = "checkpoints",
+)
+ap.add_argument(
+    "-r", 
+    "--resume_checkpoint", 
+    required = False,
+    help = "Enter checkpoint path from which to resume training"
+)
 ap.add_argument("-t", 
                 "--model_type", 
                 required = False,
                 help = "Specify which model you want to train with (0 or 1; will change to v1 or v2)",
-                default = 0,
+                default = 1,
 )
 ap.add_argument(
     "-p",
     "--plot-history-save-path",
     required=False,
     help="path (.json) to save training history to (will append if file exists)",
-    default=f'model_{current_hr_time()}_hist.json',
+    default=f'model_histories/model_{current_hr_time()}_hist.json',
 )
 # ap.add_argument("-s", "--ds_size", required = False, # not currently implemented; for the future
                # help = "Resize ds by certain percent to be smaller for faster training")
 
 args = vars(ap.parse_args())
 
+if os.path.isdir(args['ckpt_save_dir']):
+    args['ckpt_save_dir'] += current_hr_time()
+
 # ----------------------------------------------------------------------------
-def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
+def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2, num_batches=None):
     model = tf.keras.Sequential()
     # depth, frame size are first 2 args
     # First layer of sequential model should get input_shape as arg
@@ -139,7 +155,18 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
     # size of last Dense layer must match # of classes
     model.add(layers.Dense(num_classes, activation = activations.softmax,))
 
-    optimizer = optimizers.Adam(learning_rate = 0.0001)
+    if not num_batches:
+        num_batches = 30
+        print("\nNo batch_size provided, using a default value of 30")
+    else:
+        print(f"\nDecaying learning rate every {LEARNING_RATE_ADJUST_RATE} epochs ({num_batches} batches)")
+
+    lr_scheduler = optimizers.schedules.ExponentialDecay(
+        initial_learning_rate = 0.0004,
+        decay_steps = LEARNING_RATE_ADJUST_RATE * num_batches,
+        decay_rate = 0.1,
+    )
+    optimizer = optimizers.Adam(learning_rate=lr_scheduler)
     loss = losses.CategoricalCrossentropy()
 
     model.compile(
@@ -153,7 +180,7 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
     return model
 
 # ---------------------------------------------------------------------------- #
-def sequential_model_v1(input_size=(IMG_SIZE, IMG_SIZE, 3), num_classes=2):
+def sequential_model_v1(input_size=(IMG_SIZE, IMG_SIZE, 3), num_classes=2, num_batches=None):
     model = tf.keras.Sequential()
     # depth, frame size, stride
     # first layer of sequential model needs to include input_shape arg
@@ -207,7 +234,18 @@ def sequential_model_v1(input_size=(IMG_SIZE, IMG_SIZE, 3), num_classes=2):
     # size of last Dense layer must match # of classes
     model.add(layers.Dense(num_classes, activation=activations.softmax))
 
-    optimizer = optimizers.Adam(learning_rate=0.0001)
+    if not num_batches:
+        num_batches = 30
+        print("\nNo batch_size provided, using a default value of 30")
+    else:
+        print(f"\nDecaying learning rate every {LEARNING_RATE_ADJUST_RATE} epochs ({num_batches} batches)")
+
+    lr_scheduler = optimizers.schedules.ExponentialDecay(
+        initial_learning_rate = 0.0004,
+        decay_steps = LEARNING_RATE_ADJUST_RATE * num_batches,
+        decay_rate = 0.1,
+    )
+    optimizer = optimizers.Adam(learning_rate=lr_scheduler)
     loss = losses.CategoricalCrossentropy()
 
     model.compile(
@@ -266,20 +304,14 @@ elif int(args['model_type']) == 0:
     model = sequential_model_v1()
     print("\nv1 Model created and loaded successfully")
 else:
-    model = model_v2()
+    model = model_v2(num_batches=len(ds_train))
     print("\nv2 Model created and loaded successfully")
 
-if args['ckpt_save_dir']:
-    CHECKPOINT_DIR = args['ckpt_save_dir']
-
-elif os.path.isdir(CHECKPOINT_DIR): # to avoid writing over checkpoints that already exist
-    CHECKPOINT_DIR = 'checkpoints_' + str(current_milli_time())[10:]
-
-print(f"\nSaving checkpoints at '{CHECKPOINT_DIR}'; saving every {CHKPT_EPOCH_SAVE_FREQ} epochs\n")
+print(f"\nSaving checkpoints at '{args['ckpt_save_dir']}'; saving every {CHKPT_EPOCH_SAVE_FREQ} epochs\n")
 
 callback = [
     callbacks.ModelCheckpoint(
-        filepath = CHECKPOINT_DIR + '/checkpoint_{epoch:02d}',
+        filepath = args['ckpt_save_dir'] + '/checkpoint_{epoch:02d}',
         # save_best_only = True,
         verbose = 1,
         save_freq = CHKPT_EPOCH_SAVE_FREQ * len(ds_train),
@@ -296,7 +328,7 @@ history = model.fit(
     callbacks = callback,
 )
 
-save_path = f"{CHECKPOINT_DIR}/recent_model_ep{EPOCHS}"
+save_path = f"{args['ckpt_save_dir']}/recent_model_ep{EPOCHS}"
 
 print(f"Saving model to {save_path}")
 model.save(save_path)
