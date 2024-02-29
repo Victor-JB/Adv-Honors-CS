@@ -22,18 +22,30 @@ try:
 except AttributeError:
     import pyautogui as pymouseutil     # For Mac
 
+ap = argparse.ArgumentParser()
+ap.add_argument("-p", "--model_path", required = True,
+               help = "Enter model ckpt path from which to load model")
+ap.add_argument("-t",
+                "--model_type",
+                required = False,
+                help = "Specify which model you want to train with (0 or 1; will change to v1 or v2, respectively)",
+                default = 1,
+)
+args = vars(ap.parse_args())
+
 DETECTION_ACTIVE = False
 CAPTURE_VIDEO = False
 ON = True
 FRAMES_ARR  = []
 
-IMG_SIZE = 227
-IMG_SHAPE = (IMG_SIZE, IMG_SIZE)
+if int(args['model_type']) == 0:
+    IMG_SIZE = 227
+elif int(args['model_type']) == 1:
+    IMG_SIZE = 302
+else:
+    raise ValueError('"--model_type" argument provided is not int 0 or 1')
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-p", "--model_path", required = True,
-               help = "Enter model ckpt path from which to load model")
-args = vars(ap.parse_args())
+IMG_SHAPE = (IMG_SIZE, IMG_SIZE)
 
 screenshotter = mss.mss()
 
@@ -76,12 +88,14 @@ def main():
     screen_width, screen_height = pymouseutil.size()
     """
     When split screen on my windows monitor
+    """
     screenshotter_bounding_box = {
         'top': 80, 
         'left': 0,
-        'width': 1270,
-        'height': 960,
+        'width': 1950,
+        'height': 740,
     }
+
     """
     screenshotter_bounding_box = {
         'top': 0, 
@@ -89,6 +103,7 @@ def main():
         'width': screen_width,
         'height': screen_height,
     }
+    """
 
     print("Keyboard being input read... ready to record screen in real time\n1. 'p' key \
 to toggle detection\n2. 'v' key to toggle video saving\n3. 'q' key to quit the program")

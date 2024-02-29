@@ -292,7 +292,7 @@ else:
     raise ValueError('"--model_type" argument provided is not int 0 or 1')
 
 ds_train, ds_test, num_classes = load_dataset(
-                        args['dataset_path'], 
+                        args['dataset_path'],
                         current_img_size,
                         BATCH_SIZE,
 )

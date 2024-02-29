@@ -19,7 +19,7 @@ except AttributeError:
 SCRNSHOT_PLAYER = False
 SCRNSHOT_NOT_PLAYER = False
 ON = True
-DS_DIR_NAME = "new_krunker_img_ds"
+DS_DIR_NAME = "new_krunker_ds_images"
 
 screenshotter = mss.mss()
 
@@ -59,24 +59,36 @@ def main():
                                   'width': screen_width,
                                   'height': screen_height}
 
+    img_player_capture_counter = 0
+    img_no_player_capture_counter = 0
+
     print("Keyboard being input read... ready to take screenshots\n1. 'p' key \
 to toggle screenshotting when player is IN the frame\n2. 'n' key to toggle when \
-player is NOT in view")
+player is NOT in view\n3. 'q' is to quit the program")
 
     while ON:
         if SCRNSHOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            output = f"{DS_DIR_NAME}/PLAYER/PLAYER_{current_milli_time()}.jpeg"
+            output = f"{DS_DIR_NAME}/PLAYER/PLAYER_{current_milli_time()}.png"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
+            img_player_capture_counter += 1
+
+            if img_player_capture_counter % 100 == 0:
+                print(img_player_capture_counter, "at", img_player_capture_counter)
 
         elif SCRNSHOT_NOT_PLAYER:
             sct_img = screenshotter.grab(screenshotter_bounding_box)
 
-            output = f"{DS_DIR_NAME}/NO_PLAYER/NO_PLAYER_{current_milli_time()}.jpeg"
+            output = f"{DS_DIR_NAME}/NO_PLAYER/NO_PLAYER_{current_milli_time()}.png"
 
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
+            img_no_player_capture_counter += 1
+
+            if img_no_player_capture_counter % 100 == 0:
+                print(img_no_player_capture_counter, "at", img_no_player_capture_counter)
+
 
 if __name__ == "__main__":
     main()
