@@ -25,20 +25,20 @@ def rolling_average(x, w):
     return np.convolve(x, np.ones(w), 'valid') / w
 
 # ---------------------------------------------------------------------------- #
-def load_dataset(DS_PATH, IMG_SIZE, BATCH_SIZE, val_split=.6):
+def load_dataset(DS_PATH, IMG_SHAPE, BATCH_SIZE, val_split=0.3):
     # will handle ds path validation for me
-    print(DS_PATH)
+    print("Loading images from dataset path," DS_PATH, "...")
     ds_train, ds_test = tf.keras.utils.image_dataset_from_directory(
         DS_PATH,
         label_mode = 'categorical',
-        image_size = (IMG_SIZE, IMG_SIZE),
+        image_size = IMG_SHAPE,
         seed = 18181,
         validation_split = val_split,
         batch_size = BATCH_SIZE,
         subset = 'both',
     )
 
-    print(f"\nDataset images have been resized to ({IMG_SIZE}, {IMG_SIZE})")
+    print(f"\nDataset images have been resized to {IMG_SHAPE}")
 
     NUM_CLASSES = len(ds_train.class_names)
 

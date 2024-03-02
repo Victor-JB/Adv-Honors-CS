@@ -5,21 +5,26 @@ Description: Function-based CNN created from scratch
 Date: Winter 2023
 """
 
-# ---------------------------------------------------------------------------- #
-def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
+import tensorflow as tf
+import tensorflow.keras.layers as layers
+import tensorflow.keras.activations as activations
+import tensorflow.keras.optimizers as optimizers
+import tensorflow.keras.losses as losses
+
+# ----------------------------------------------------------------------------
+def seq_modelv2(input_shape, num_classes=2, init_lr=0.00005, lr_adjust=None):
     model = tf.keras.Sequential()
     # depth, frame size are first 2 args
     # First layer of sequential model should get input_shape as arg
-    # Input 302 x 302 x 3
+    # Input given by input_shape, something like 500x1000
 
     model.add(layers.Conv2D(
         32, 20,
         strides = 6,
         activation = activations.relu,
-        input_shape = input_size,
+        input_shape = input_shape,
         kernel_regularizer = tf.keras.regularizers.L2(),
-        padding = "same",
-    ))
+        ))
     model.add(layers.BatchNormalization())
     # 48 x 48 x 32
 
@@ -28,7 +33,7 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
         strides = 1,
         activation = activations.relu,
         kernel_regularizer = tf.keras.regularizers.L2(),
-    ))
+        ))
     model.add(layers.BatchNormalization())
     model.add(layers.ZeroPadding2D(1))
 
@@ -36,8 +41,7 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
         40, 3,
         strides = 1,
         activation = activations.relu,
-        kernel_regularizer = tf.keras.regularizers.L2(),
-    ))
+        kernel_regularizer = tf.keras.regularizers.L2(),))
     model.add(layers.BatchNormalization())
     model.add(layers.ZeroPadding2D(1))
 
@@ -45,8 +49,7 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
         40, 3,
         strides = 1,
         activation = activations.relu,
-        kernel_regularizer = tf.keras.regularizers.L2(),
-    ))
+        kernel_regularizer = tf.keras.regularizers.L2(),))
     model.add(layers.BatchNormalization())
 
     model.add(layers.MaxPooling2D(
@@ -91,7 +94,18 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
     # size of last Dense layer must match # of classes
     model.add(layers.Dense(num_classes, activation = activations.softmax,))
 
-    optimizer = optimizers.Adam(learning_rate = 0.0001)
+    if not lr_adjust:
+        lr_adjust = 300
+        print("\nNo lr_adjust batch num provided, using a default value of 300")
+    else:
+        print(f"\nDecaying learning rate every {lr_adjust} batches)")
+
+    lr_scheduler = optimizers.schedules.ExponentialDecay(
+        initial_learning_rate = init_lr,
+        decay_steps = lr_adjust, # number of batches before decaying learning rate
+        decay_rate = 0.1,
+    )
+    optimizer = optimizers.Adam(learning_rate=lr_scheduler)
     loss = losses.CategoricalCrossentropy()
 
     model.compile(
@@ -105,7 +119,7 @@ def model_v2(input_size=(IMG_SIZE_v2, IMG_SIZE_v2, 3), num_classes=2):
     return model
 
 # ---------------------------------------------------------------------------- #
-def sequential_model_v1(input_size=(IMG_SIZE, IMG_SIZE, 3), num_classes=2):
+def seq_modelv1(input_size=(300, 300, 3), num_classes=2, init_lr=0.0005, lr_adjust=None):
     model = tf.keras.Sequential()
     # depth, frame size, stride
     # first layer of sequential model needs to include input_shape arg
@@ -159,7 +173,18 @@ def sequential_model_v1(input_size=(IMG_SIZE, IMG_SIZE, 3), num_classes=2):
     # size of last Dense layer must match # of classes
     model.add(layers.Dense(num_classes, activation=activations.softmax))
 
-    optimizer = optimizers.Adam(learning_rate=0.0001)
+    if not lr_adjust:
+        lr_adjust = 300
+        print("\nNo lr_adjust batch num provided, using a default value of 300")
+    else:
+        print(f"\nDecaying learning rate every {lr_adjust} batches)")
+
+    lr_scheduler = optimizers.schedules.ExponentialDecay(
+        initial_learning_rate = init_lr,
+        decay_steps = lr_adjust, # number of batches before decaying learning rate
+        decay_rate = 0.1,
+    )
+    optimizer = optimizers.Adam(learning_rate=lr_scheduler)
     loss = losses.CategoricalCrossentropy()
 
     model.compile(
