@@ -31,26 +31,26 @@ LEARNINGR_EPCH_ADJUST_RATE = 40
 
 ap = argparse.ArgumentParser()
 ap.add_argument(
-    "-d", 
-    "--dataset_path", 
+    "-d",
+    "--dataset_path",
     required = True,
     help = "Enter custom dataset path to train classifier from"
 )
 ap.add_argument(
-    "-c", 
-    "--ckpt_save_dir", 
+    "-c",
+    "--ckpt_save_dir",
     required = False,
     help = "Enter custom model checkpoint path",
     default = "checkpoints",
 )
 ap.add_argument(
-    "-r", 
-    "--resume_checkpoint", 
+    "-r",
+    "--resume_checkpoint",
     required = False,
     help = "Enter checkpoint path from which to resume training"
 )
-ap.add_argument("-t", 
-                "--model_type", 
+ap.add_argument("-t",
+                "--model_type",
                 required = False,
                 help = "Specify which model you want to train with (1 or 2; will change to v1 or v2)",
                 default = 2,

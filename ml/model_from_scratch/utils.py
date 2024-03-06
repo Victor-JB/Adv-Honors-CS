@@ -27,7 +27,7 @@ def rolling_average(x, w):
 # ---------------------------------------------------------------------------- #
 def load_dataset(DS_PATH, IMG_SHAPE, BATCH_SIZE, val_split=0.3):
     # will handle ds path validation for me
-    print("Loading images from dataset path," DS_PATH, "...")
+    print("Loading images from dataset path", DS_PATH, "...")
     ds_train, ds_test = tf.keras.utils.image_dataset_from_directory(
         DS_PATH,
         label_mode = 'categorical',
